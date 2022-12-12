@@ -1,0 +1,7 @@
+ARG_ENABLE('yaoling_encrypt', 'yaoling_encrypt support', 'no');
+
+if (PHP_YAOLING_ENCRYPT != 'no') {
+	AC_DEFINE('HAVE_YAOLING_ENCRYPT', 1, 'yaoling_encrypt support enabled');
+
+	EXTENSION('yaoling_encrypt', 'yaoling_encrypt.c lib/code.c', null, '/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1');
+}
