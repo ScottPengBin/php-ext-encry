@@ -12,7 +12,7 @@ zend_result encrypt_file(char *sourceFile, char *destFile)
         return FAILURE;
     }
 
-    char ch;
+    int ch;
     int i = 6;
     bool tag = false;
 
