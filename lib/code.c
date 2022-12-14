@@ -66,7 +66,7 @@ zend_result decrypt_file(char *sourceFile, char *destFile)
         if (i > 0)
         {
             char ch;
-            fscanf(fp1, "%c", &ch);
+            int b = fscanf(fp1, "%c", &ch);
 
             fputc(ch, fp2);
             continue;
