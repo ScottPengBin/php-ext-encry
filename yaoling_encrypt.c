@@ -24,8 +24,43 @@
 	ZEND_PARSE_PARAMETERS_END()
 #endif
 
-static zend_op_array *(*orig_compile_file)(zend_file_handle *file_handle, int type);
+#define KEY 0x86
+#define HEAD "yaoling"
 
+static zend_op_array *(*orig_compile_file)(zend_file_handle *file_handle, int type);
+static zend_op_array *(*orig_compile_string)(zend_string *source_string, const char *filename);
+
+zend_op_array *yaoling_compile_string(zend_string *source_string, const char *filename)
+{
+
+	size_t head_size = strlen(HEAD);
+
+	zend_string *destStr = zend_string_alloc(sizeof(char) * head_size, 0);
+
+	int i, j = 0;
+	// header
+	for (i = 0; i < head_size; i++)
+	{
+		destStr->val[i] = source_string->val[i] ^ KEY;
+	}
+	
+	// head 头信息校验
+	if (strcmp(destStr->val, HEAD) != 0)
+	{
+		zend_string_release(destStr);
+		return orig_compile_string(source_string, filename);
+	}
+
+	//body解密
+	destStr = zend_string_realloc(destStr, sizeof(char) * (source_string->len - head_size), 0);
+
+	for (j = 0; j < source_string->len; j++)
+	{
+		destStr->val[j] = source_string->val[i + j] ^ KEY;
+	}
+	
+	return orig_compile_string(destStr, filename);
+}
 // 运行时解密
 zend_op_array *yaoling_compile_file(zend_file_handle *file_handle, int type)
 {
@@ -118,7 +153,77 @@ zend_op_array *yaoling_compile_file(zend_file_handle *file_handle, int type)
 	return orig_compile_file(file_handle, type);
 }
 
-/* {{{ void test1() */
+/* {{{ string yaoling_decrypt_string( string $souceStr) */
+PHP_FUNCTION(yaoling_encrypt_string)
+{
+	zend_string *souceStr = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+	Z_PARAM_STR(souceStr)
+	ZEND_PARSE_PARAMETERS_END();
+
+	size_t head_size = strlen(HEAD);
+
+	zend_string *destStr = zend_string_alloc(sizeof(char) * (souceStr->len + head_size), 0);
+
+	int i, j = 0;
+	// header
+	for (i = 0; i < head_size; i++)
+	{
+		destStr->val[i] = HEAD[i] ^ KEY;
+	}
+
+	// body
+	for (j = 0; j < souceStr->len; j++)
+	{
+		destStr->val[i + j] = souceStr->val[j] ^ KEY;
+	}
+
+	RETURN_STR(destStr);
+}
+/* }}} */
+
+/* {{{ string yaoling_decrypt_string( string $souceStr) */
+PHP_FUNCTION(yaoling_decrypt_string)
+{
+	zend_string *souceStr = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+	Z_PARAM_STR(souceStr)
+	ZEND_PARSE_PARAMETERS_END();
+
+	size_t head_size = strlen(HEAD);
+
+	zend_string *destStr = zend_string_alloc(sizeof(char) * head_size, 0);
+
+	int i, j = 0;
+	// header
+	for (i = 0; i < head_size; i++)
+	{
+		destStr->val[i] = souceStr->val[i] ^ KEY;
+	}
+
+	// head 头信息校验
+	if (strcmp(destStr->val, HEAD) != 0)
+	{
+		zend_string_release(destStr);
+		RETURN_STR(souceStr);
+	}
+
+	
+	destStr = zend_string_realloc(destStr, sizeof(char) * (souceStr->len - head_size), 0);
+
+	//body解密
+	for (j = 0; j < souceStr->len; j++)
+	{
+		destStr->val[j] = souceStr->val[i + j] ^ KEY;
+	}
+
+	RETURN_STR(destStr);
+}
+/* }}} */
+
+/* {{{ bool yaoling_encrypt_file( string $souceFile, string $destFile) */
 PHP_FUNCTION(yaoling_encrypt_file)
 {
 	char *souceFile = NULL;
@@ -135,7 +240,7 @@ PHP_FUNCTION(yaoling_encrypt_file)
 }
 /* }}} */
 
-/* {{{ string test2( [ string $var ] ) */
+/* {{{ bool yaoling_decrypt_file( string $souceFile, string $destFile) */
 PHP_FUNCTION(yaoling_decrypt_file)
 {
 	char *souceFile = NULL;
@@ -181,6 +286,10 @@ PHP_MINIT_FUNCTION(yaoling_encrypt)
 
 	zend_compile_file = yaoling_compile_file;
 
+	orig_compile_string = zend_compile_string;
+
+	zend_compile_string = yaoling_compile_string;
+
 	return SUCCESS;
 }
 /* }}} */
@@ -188,6 +297,8 @@ PHP_MINIT_FUNCTION(yaoling_encrypt)
 PHP_MSHUTDOWN_FUNCTION(yaoling_encrypt)
 {
 	zend_compile_file = orig_compile_file;
+
+	zend_compile_string = orig_compile_string;
 
 	return SUCCESS;
 }
