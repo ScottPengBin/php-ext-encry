@@ -124,16 +124,13 @@ zend_op_array *yaoling_compile_file(zend_file_handle *file_handle, int type)
 /* {{{ bool yaoling_encrypt_file( string $souceFile, string $destFile) */
 PHP_FUNCTION(yaoling_encrypt_file)
 {
-	char *souceFile = NULL;
-	char *destFile = NULL;
-	size_t str_len = 0;
+	zend_string *encrypt_file = NULL;
 
-	ZEND_PARSE_PARAMETERS_START(2, 2)
-	Z_PARAM_STRING(souceFile, str_len)
-	Z_PARAM_STRING(destFile, str_len)
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+	Z_PARAM_STR(encrypt_file)
 	ZEND_PARSE_PARAMETERS_END();
 
-	int status = encrypt_file(souceFile, destFile);
+	int status = encrypt_file_code(encrypt_file);
 	RETURN_BOOL(status + 1);
 }
 /* }}} */
@@ -141,16 +138,16 @@ PHP_FUNCTION(yaoling_encrypt_file)
 /* {{{ bool yaoling_decrypt_file( string $souceFile, string $destFile) */
 PHP_FUNCTION(yaoling_decrypt_file)
 {
-	char *souceFile = NULL;
-	char *destFile = NULL;
-	size_t str_len = 0;
+	zend_string *decrypt_file = NULL;
+	zend_string *decrypt_key = NULL;
+
 
 	ZEND_PARSE_PARAMETERS_START(2, 2)
-	Z_PARAM_STRING(souceFile, str_len)
-	Z_PARAM_STRING(destFile, str_len)
+	Z_PARAM_STR(decrypt_file)
+	Z_PARAM_STR(decrypt_key)
 	ZEND_PARSE_PARAMETERS_END();
 
-	int status = decrypt_file(souceFile, destFile);
+	int status = decrypt_file_code(decrypt_file, decrypt_key);
 	RETURN_BOOL(status + 1);
 }
 /* }}}*/

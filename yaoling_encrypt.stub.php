@@ -2,10 +2,10 @@
 
 /** @generate-class-entries */
 
-function yaoling_encrypt_file(string $sourceFile, string $encryptKey): bool
+function yaoling_encrypt_file(string $source_file, string $encrypt_key): bool
 {
 }
 
-function yaoling_decrypt_file(string $sourceFile, string $decryptKey): bool
+function yaoling_decrypt_file(string $source_file, string $decrypt_key): bool
 {
 }
