@@ -24,88 +24,59 @@
 	ZEND_PARSE_PARAMETERS_END()
 #endif
 
-#define KEY 0x86
-#define HEAD "yaoling"
-
 static zend_op_array *(*orig_compile_file)(zend_file_handle *file_handle, int type);
-static zend_op_array *(*orig_compile_string)(zend_string *source_string, const char *filename);
 
-zend_op_array *yaoling_compile_string(zend_string *source_string, const char *filename)
-{
-
-	size_t head_size = strlen(HEAD);
-
-	zend_string *destStr = zend_string_alloc(sizeof(char) * head_size, 0);
-
-	int i, j = 0;
-	// header
-	for (i = 0; i < head_size; i++)
-	{
-		destStr->val[i] = source_string->val[i] ^ KEY;
-	}
-	
-	// head 头信息校验
-	if (strcmp(destStr->val, HEAD) != 0)
-	{
-		zend_string_release(destStr);
-		return orig_compile_string(source_string, filename);
-	}
-
-	//body解密
-	destStr = zend_string_realloc(destStr, sizeof(char) * (source_string->len - head_size), 0);
-
-	for (j = 0; j < source_string->len; j++)
-	{
-		destStr->val[j] = source_string->val[i + j] ^ KEY;
-	}
-	
-	return orig_compile_string(destStr, filename);
-}
 // 运行时解密
 zend_op_array *yaoling_compile_file(zend_file_handle *file_handle, int type)
 {
-
 	// 打开源文件
-	FILE *fp1 = fopen(ZSTR_VAL(file_handle->filename), "rb");
-
-	if (!fp1)
-		return orig_compile_file(file_handle, type);
-
-	int stream = fileno(fp1);
-	struct stat statbuf;
-	fstat(stream, &statbuf);
-	int bodylen = statbuf.st_size;
-	char *buf = (char *)malloc(sizeof(char) * statbuf.st_size);
-
-	// 读取文件
-	if (read(stream, buf, bodylen) != statbuf.st_size)
+	FILE *fp = fopen(file_handle->filename->val, "rb");
+	if (!fp)
 	{
-		php_printf("Failed to readed ");
-		return orig_compile_file(file_handle, type);
+		fp = zend_fopen(file_handle->filename, &file_handle->opened_path);
+		if (!fp)
+		{
+			return orig_compile_file(file_handle, type);
+		}
 	}
+
+	/**==============解密开始=====================*/
+	struct stat statbuf;
+	fstat(fileno(fp), &statbuf);
+	int bodylen = statbuf.st_size;
+
 
 	// 先申请6个子节
 	char *realbuf = malloc(6);
 	size_t reallen = 0;
 	bool decode = false;
-	for (int i = 0; i < bodylen; i++)
+	int i = 7;
+	short temp;
+	while (!feof(fp))
 	{
-		if (i < 6)
+		i--;
+		if (i > 0)
 		{
-			realbuf[reallen++] = buf[i];
+			char ch;
+			int b = fscanf(fp, "%c", &ch);
+			
+			realbuf[reallen++] = ch;
 			continue;
 		}
-
-		char temp[6];
-		strncpy(temp, buf + i, 6);
-		short stemp = atoi(temp);
-		stemp <<= 1;
-		stemp >>= 5;
-		char ch = (char)stemp;
-
-		if (!ch)
+		int a = fscanf(fp, "%hd", &temp);
+		//不能被解密
+		if(temp > 0){
 			break;
-
+		}
+		
+		temp <<= 1;
+        temp >>= 5;
+		char ch = (char)temp;
+		if (!ch)
+		{
+			break;
+		}
+		
 		// 可以被解密
 		if (decode == false)
 		{
@@ -113,115 +84,42 @@ zend_op_array *yaoling_compile_file(zend_file_handle *file_handle, int type)
 			realbuf = realloc(realbuf, bodylen);
 			decode = true;
 		}
-
 		realbuf[reallen++] = ch;
-
-		i += 5;
 	}
 
+	//不能解密，释放内存
 	if (decode == false)
 	{
 		free(realbuf);
-		free(buf);
-		fclose(fp1);
+		fclose(fp);
 		return orig_compile_file(file_handle, type);
 	}
 
-	char *tmp_buf = NULL;
-	size_t tmp_size = 0;
+	fclose(fp);
+	/**=============解密结束======================*/
 
-	if (file_handle->type == ZEND_HANDLE_STREAM)
-	{
-		file_handle->type = ZEND_HANDLE_FP;
-	}
 
-	if (file_handle->handle.fp != NULL)
-	{
+	if (file_handle->type == ZEND_HANDLE_FP)
 		fclose(file_handle->handle.fp);
-	}
+#ifdef ZEND_HANDLE_FD
+	if (file_handle->type == ZEND_HANDLE_FD)
+		close(file_handle->handle.fd);
+#endif
+	file_handle->type = ZEND_HANDLE_FP;
 
-	file_handle->handle.fp = tmpfile();
+	fp = tmpfile();
 
-	fwrite(realbuf, 1, reallen, file_handle->handle.fp);
+	fwrite(realbuf, 1, reallen, fp);
 
-	rewind(file_handle->handle.fp);
+	rewind(fp);
+
+	file_handle->handle.fp = fp;
 
 	free(realbuf);
-	free(buf);
-	fclose(fp1);
+
 
 	return orig_compile_file(file_handle, type);
 }
-
-/* {{{ string yaoling_decrypt_string( string $souceStr) */
-PHP_FUNCTION(yaoling_encrypt_string)
-{
-	zend_string *souceStr = NULL;
-
-	ZEND_PARSE_PARAMETERS_START(1, 1)
-	Z_PARAM_STR(souceStr)
-	ZEND_PARSE_PARAMETERS_END();
-
-	size_t head_size = strlen(HEAD);
-
-	zend_string *destStr = zend_string_alloc(sizeof(char) * (souceStr->len + head_size), 0);
-
-	int i, j = 0;
-	// header
-	for (i = 0; i < head_size; i++)
-	{
-		destStr->val[i] = HEAD[i] ^ KEY;
-	}
-
-	// body
-	for (j = 0; j < souceStr->len; j++)
-	{
-		destStr->val[i + j] = souceStr->val[j] ^ KEY;
-	}
-
-	RETURN_STR(destStr);
-}
-/* }}} */
-
-/* {{{ string yaoling_decrypt_string( string $souceStr) */
-PHP_FUNCTION(yaoling_decrypt_string)
-{
-	zend_string *souceStr = NULL;
-
-	ZEND_PARSE_PARAMETERS_START(1, 1)
-	Z_PARAM_STR(souceStr)
-	ZEND_PARSE_PARAMETERS_END();
-
-	size_t head_size = strlen(HEAD);
-
-	zend_string *destStr = zend_string_alloc(sizeof(char) * head_size, 0);
-
-	int i, j = 0;
-	// header
-	for (i = 0; i < head_size; i++)
-	{
-		destStr->val[i] = souceStr->val[i] ^ KEY;
-	}
-
-	// head 头信息校验
-	if (strcmp(destStr->val, HEAD) != 0)
-	{
-		zend_string_release(destStr);
-		RETURN_STR(souceStr);
-	}
-
-	
-	destStr = zend_string_realloc(destStr, sizeof(char) * (souceStr->len - head_size), 0);
-
-	//body解密
-	for (j = 0; j < souceStr->len; j++)
-	{
-		destStr->val[j] = souceStr->val[i + j] ^ KEY;
-	}
-
-	RETURN_STR(destStr);
-}
-/* }}} */
 
 /* {{{ bool yaoling_encrypt_file( string $souceFile, string $destFile) */
 PHP_FUNCTION(yaoling_encrypt_file)
@@ -286,10 +184,6 @@ PHP_MINIT_FUNCTION(yaoling_encrypt)
 
 	zend_compile_file = yaoling_compile_file;
 
-	orig_compile_string = zend_compile_string;
-
-	zend_compile_string = yaoling_compile_string;
-
 	return SUCCESS;
 }
 /* }}} */
@@ -297,8 +191,6 @@ PHP_MINIT_FUNCTION(yaoling_encrypt)
 PHP_MSHUTDOWN_FUNCTION(yaoling_encrypt)
 {
 	zend_compile_file = orig_compile_file;
-
-	zend_compile_string = orig_compile_string;
 
 	return SUCCESS;
 }

@@ -1,10 +1,10 @@
 #include "code.h"
 
-//加密函数
+// 加密函数
 zend_result encrypt_file(char *sourceFile, char *destFile)
 {
 
-    FILE *fp1 = fopen(sourceFile, "r");
+    FILE *fp1 = fopen(sourceFile, "rw");
     FILE *fp2 = fopen(destFile, "w");
 
     if (!fp1 || !fp2)
@@ -13,31 +13,21 @@ zend_result encrypt_file(char *sourceFile, char *destFile)
     }
 
     int ch;
-    int i = 6;
-    bool tag = false;
+    // int i = 6;
+    int i = 0;
 
     while ((ch = fgetc(fp1)) != EOF)
     {
 
-        i--;
+        short temp = (short)ch;
+        temp <<= 4;
 
-        if (i < 0)
-        {
+        temp |= 0x8000;
 
-            short temp = (short)ch;
-            temp <<= 4;
+        temp += rand() % 16;
+        // 加密字符放入文件中
 
-            temp |= 0x8000;
-
-            temp += rand() % 16;
-            //加密字符放入文件中
-
-            fprintf(fp2, "%hd", temp);
-        }
-        else
-        {
-            fprintf(fp2, "%c", ch);
-        }
+        fprintf(fp2, "%hd", temp);
     }
     fprintf(fp2, "%s", ";");
     fclose(fp1);
@@ -45,7 +35,7 @@ zend_result encrypt_file(char *sourceFile, char *destFile)
     return SUCCESS;
 }
 
-//解密函数
+// 解密函数
 zend_result decrypt_file(char *sourceFile, char *destFile)
 {
     FILE *fp1 = fopen(sourceFile, "r");
