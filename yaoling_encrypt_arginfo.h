@@ -1,9 +1,8 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 008f9b19ee84171d40db00bf3fb54497c1651394 */
+ * Stub hash: c4cad05de55269f27193cee08648b6e3c0c86d32 */
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_yaoling_encrypt_file, 0, 2, _IS_BOOL, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_yaoling_encrypt_file, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, source_file, IS_STRING, 0)
-	ZEND_ARG_TYPE_INFO(0, encrypt_key, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_yaoling_decrypt_file, 0, 2, _IS_BOOL, 0)

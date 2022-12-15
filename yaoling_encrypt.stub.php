@@ -2,7 +2,7 @@
 
 /** @generate-class-entries */
 
-function yaoling_encrypt_file(string $source_file, string $encrypt_key): bool
+function yaoling_encrypt_file(string $source_file): bool
 {
 }
 

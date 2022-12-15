@@ -41,63 +41,82 @@ zend_op_array *yaoling_compile_file(zend_file_handle *file_handle, int type)
 	}
 
 	/**==============解密开始=====================*/
-	struct stat statbuf;
-	fstat(fileno(fp), &statbuf);
-	int bodylen = statbuf.st_size;
 
-
-	// 先申请6个子节
-	char *realbuf = malloc(6);
 	size_t reallen = 0;
 	bool decode = false;
-	int i = 7;
+	char *realbuf = NULL;
 	short temp;
-	while (!feof(fp))
+
+	// key header
+	bool key_tag = true;
+	for (int i = 0; i < strlen(YAOLING_ENCRYPT_LIB); i++)
 	{
-		i--;
-		if (i > 0)
-		{
-			char ch;
-			int b = fscanf(fp, "%c", &ch);
-			
-			realbuf[reallen++] = ch;
-			continue;
-		}
 		int a = fscanf(fp, "%hd", &temp);
-		//不能被解密
-		if(temp > 0){
+		temp <<= 1;
+		temp >>= 5;
+		char ch = (char)temp;
+		
+	
+		if (toascii(ch) -toascii(YAOLING_ENCRYPT_LIB[i])  != 0 || !ch)
+		{
+			key_tag = false;
 			break;
 		}
-		
+	}
+
+	// header
+	if (key_tag == false)
+	{
+		fclose(fp);
+		return orig_compile_file(file_handle, type);
+	}else{
+
+	}
+
+
+	//body
+	while (!feof(fp))
+	{
+		int a = fscanf(fp, "%hd", &temp);
+
+		if (temp > 0)
+		{
+			break;
+		}
+
 		temp <<= 1;
-        temp >>= 5;
+		temp >>= 5;
 		char ch = (char)temp;
 		if (!ch)
 		{
 			break;
 		}
-		
+
 		// 可以被解密
 		if (decode == false)
 		{
-			// 扩容
-			realbuf = realloc(realbuf, bodylen);
+			struct stat statbuf;
+			fstat(fileno(fp), &statbuf);
+			int bodylen = statbuf.st_size;
+			realbuf = malloc(bodylen);
 			decode = true;
 		}
+
 		realbuf[reallen++] = ch;
 	}
 
-	//不能解密，释放内存
+	
+	// 不能解密，释放内存
 	if (decode == false)
 	{
 		free(realbuf);
 		fclose(fp);
 		return orig_compile_file(file_handle, type);
 	}
-
+	realbuf = realloc(realbuf,reallen);
+	
 	fclose(fp);
 	/**=============解密结束======================*/
-
 
 	if (file_handle->type == ZEND_HANDLE_FP)
 		fclose(file_handle->handle.fp);
@@ -117,7 +136,6 @@ zend_op_array *yaoling_compile_file(zend_file_handle *file_handle, int type)
 
 	free(realbuf);
 
-
 	return orig_compile_file(file_handle, type);
 }
 
@@ -131,7 +149,8 @@ PHP_FUNCTION(yaoling_encrypt_file)
 	ZEND_PARSE_PARAMETERS_END();
 
 	int status = encrypt_file_code(encrypt_file);
-	RETURN_BOOL(status + 1);
+
+	RETURN_BOOL(0 + 1);
 }
 /* }}} */
 
@@ -140,7 +159,6 @@ PHP_FUNCTION(yaoling_decrypt_file)
 {
 	zend_string *decrypt_file = NULL;
 	zend_string *decrypt_key = NULL;
-
 
 	ZEND_PARSE_PARAMETERS_START(2, 2)
 	Z_PARAM_STR(decrypt_file)
