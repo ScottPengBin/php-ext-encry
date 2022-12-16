@@ -69,8 +69,6 @@ zend_op_array *yaoling_compile_file(zend_file_handle *file_handle, int type)
 	{
 		fclose(fp);
 		return orig_compile_file(file_handle, type);
-	}else{
-
 	}
 
 

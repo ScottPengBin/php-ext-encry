@@ -1,5 +1,6 @@
 #include "code.h"
 
+
 // 加密函数
 zend_result encrypt_file_code(zend_string *encrypt_file)
 {
@@ -61,13 +62,15 @@ zend_result encrypt_file_code(zend_string *encrypt_file)
     fp = fopen(encrypt_file->val, "wb");
     if (fp == NULL)
     {
-        err_msg("Can not create crypt file(%s)", encrypt_file->val);
+        err_msg("Can not create encrypt file(%s)", encrypt_file->val);
         return FAILURE;
     }
 
     fwrite(buffer, 1, strlen(buffer), fp);
 
     free(buffer);
+
+    fclose(fp);
 
     alert_msg("success encrypt file", encrypt_file->val);
     return SUCCESS;
@@ -92,23 +95,26 @@ zend_result decrypt_file_code(zend_string *decrypt_file, zend_string *decrypt_ke
     short temp;
 
     // key header
+    char key[key_len];
     for (int i = 0; i < key_len; i++)
     {
         int a = fscanf(fp, "%hd", &temp);
         temp <<= 1;
         temp >>= 5;
-        char ch = (char)temp;
-
-        if (strcmp(&ch, &YAOLING_ENCRYPT_LIB[i]) != 0 || !ch)
-        {
-            err_msg("decrypt key  is ", "illegal");
-
-            goto fail;
-        }
+        key[i] = (char)temp;
     }
 
-    FILE *tmp = tmpfile();
+   
+    if(strcmp(key,YAOLING_ENCRYPT_LIB) != 0){
+        err_msg("decrypt key is ","illegal");
+        goto fail;
+    }
 
+    bool decode = false;
+
+    char *buffer = NULL;
+
+    int reallen = 0;
     // body
     while (!feof(fp))
     {
@@ -122,13 +128,48 @@ zend_result decrypt_file_code(zend_string *decrypt_file, zend_string *decrypt_ke
         {
             break;
         }
-        int b = fputs(&ch, tmp);
+
+        // 可以被解密
+		if (decode == false)
+		{
+			struct stat statbuf;
+			fstat(fileno(fp), &statbuf);
+			int bodylen = statbuf.st_size;
+			buffer = malloc(bodylen);
+			decode = true;
+		}
+
+        buffer[reallen++] = ch;
     }
 
-    fclose(fp);
-    fp = tmp;
+    // 不能解密，释放内存
+	if (decode == false)
+	{
+		free(buffer);
+		goto fail;
+	}
 
+    buffer = realloc(buffer,reallen);
+
+    fclose(fp);
+
+    fp = fopen(decrypt_file->val, "wb");
+    if (fp == NULL)
+    {
+        err_msg("Can not create encrypt file", decrypt_file->val);
+        return FAILURE;
+    }
+
+    fwrite(buffer, 1, strlen(buffer), fp);
+
+    free(buffer);
+
+    fclose(fp);
+
+    alert_msg("success decrypt file", decrypt_file->val);
     return SUCCESS;
+
+
 
 fail:
 {
@@ -136,7 +177,7 @@ fail:
     {
         fclose(fp);
     }
-    err_msg("decrypt key is : ", "illegal");
+    err_msg("Can not decrypt file", decrypt_file->val);
     return FAILURE;
 }
 }
