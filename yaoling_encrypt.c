@@ -29,6 +29,16 @@ static zend_op_array *(*orig_compile_file)(zend_file_handle *file_handle, int ty
 // 运行时解密
 zend_op_array *yaoling_compile_file(zend_file_handle *file_handle, int type)
 {
+
+	if(strcmp(file_handle->filename->val,"Standard input code") == 0){
+		return orig_compile_file(file_handle, type);
+	}
+
+	if (!file_handle || !file_handle->filename || strstr(file_handle->filename->val, ".phar") || strstr(file_handle->filename->val, "phar://"))
+	{
+		return orig_compile_file(file_handle, type);
+	}
+
 	// 打开源文件
 	FILE *fp = fopen(file_handle->filename->val, "rb");
 	if (!fp)
@@ -55,9 +65,8 @@ zend_op_array *yaoling_compile_file(zend_file_handle *file_handle, int type)
 		temp <<= 1;
 		temp >>= 5;
 		char ch = (char)temp;
-		
-	
-		if (toascii(ch) -toascii(YAOLING_ENCRYPT_LIB[i])  != 0 || !ch)
+
+		if (toascii(ch) - toascii(YAOLING_ENCRYPT_LIB[i]) != 0 || !ch)
 		{
 			key_tag = false;
 			break;
@@ -71,8 +80,7 @@ zend_op_array *yaoling_compile_file(zend_file_handle *file_handle, int type)
 		return orig_compile_file(file_handle, type);
 	}
 
-
-	//body
+	// body
 	while (!feof(fp))
 	{
 		int a = fscanf(fp, "%hd", &temp);
@@ -103,7 +111,6 @@ zend_op_array *yaoling_compile_file(zend_file_handle *file_handle, int type)
 		realbuf[reallen++] = ch;
 	}
 
-	
 	// 不能解密，释放内存
 	if (decode == false)
 	{
@@ -111,8 +118,8 @@ zend_op_array *yaoling_compile_file(zend_file_handle *file_handle, int type)
 		fclose(fp);
 		return orig_compile_file(file_handle, type);
 	}
-	realbuf = realloc(realbuf,reallen);
-	
+	realbuf = realloc(realbuf, reallen);
+
 	fclose(fp);
 	/**=============解密结束======================*/
 
