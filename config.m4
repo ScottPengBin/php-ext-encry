@@ -90,5 +90,5 @@ if test "$PHP_YAOLING_ENCRYPT" != "no"; then
   dnl In case of no dependencies
   AC_DEFINE(HAVE_YAOLING_ENCRYPT, 1, [ Have yaoling_encrypt support ])
 
-  PHP_NEW_EXTENSION(yaoling_encrypt, yaoling_encrypt.c lib/code.c, $ext_shared)
+  PHP_NEW_EXTENSION(yaoling_encrypt, yaoling_encrypt.c  lib/code.c, $ext_shared)
 fi
