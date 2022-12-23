@@ -1,6 +1,5 @@
 #include "code.h"
 
-
 // 加密函数
 zend_result encrypt_file_code(zend_string *encrypt_file)
 {
@@ -93,22 +92,30 @@ zend_result decrypt_file_code(zend_string *decrypt_file, zend_string *decrypt_ke
     bool key_tag = true;
     short temp;
     // key header
-    for (int i = 0; i < strlen(YAOLING_ENCRYPT_LIB); i++)
+
+    // key len
+    if (decrypt_key->len != strlen(YAOLING_ENCRYPT_LIB))
+    {
+        err_msg("decrypt key is ", "illegal");
+        goto fail;
+    }
+
+    for (int i = 0; i < decrypt_key->len; i++)
     {
         int a = fscanf(fp, "%hd", &temp);
         temp <<= 1;
         temp >>= 5;
         char ch = (char)temp;
-		if (toascii(ch) - toascii(YAOLING_ENCRYPT_LIB[i]) != 0 || !ch)
-		{
-			key_tag = false;
-			break;
-		}
+        if (toascii(ch) - toascii(decrypt_key->val[i]) != 0 || !ch)
+        {
+            key_tag = false;
+            break;
+        }
     }
 
-
-   if (key_tag == false){
-        err_msg("decrypt key is ","illegal");
+    if (key_tag == false)
+    {
+        err_msg("decrypt key is ", "illegal");
         goto fail;
     }
 
@@ -132,26 +139,26 @@ zend_result decrypt_file_code(zend_string *decrypt_file, zend_string *decrypt_ke
         }
 
         // 可以被解密
-		if (decode == false)
-		{
-			struct stat statbuf;
-			fstat(fileno(fp), &statbuf);
-			int bodylen = statbuf.st_size;
-			buffer = malloc(bodylen);
-			decode = true;
-		}
+        if (decode == false)
+        {
+            struct stat statbuf;
+            fstat(fileno(fp), &statbuf);
+            int bodylen = statbuf.st_size;
+            buffer = malloc(bodylen);
+            decode = true;
+        }
 
         buffer[reallen++] = ch;
     }
 
     // 不能解密，释放内存
-	if (decode == false)
-	{
-		free(buffer);
-		goto fail;
-	}
+    if (decode == false)
+    {
+        free(buffer);
+        goto fail;
+    }
 
-    buffer = realloc(buffer,reallen);
+    buffer = realloc(buffer, reallen);
 
     fclose(fp);
 
@@ -170,8 +177,6 @@ zend_result decrypt_file_code(zend_string *decrypt_file, zend_string *decrypt_ke
 
     alert_msg("success decrypt file ", decrypt_file->val);
     return SUCCESS;
-
-
 
 fail:
 {
