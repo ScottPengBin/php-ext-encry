@@ -62,7 +62,7 @@ zend_result encrypt_file_code(zend_string *encrypt_file)
     fp = fopen(encrypt_file->val, "wb");
     if (fp == NULL)
     {
-        err_msg("Can not create encrypt file(%s)", encrypt_file->val);
+        err_msg("Can not create encrypt file (%s)", encrypt_file->val);
         return FAILURE;
     }
 
@@ -72,7 +72,7 @@ zend_result encrypt_file_code(zend_string *encrypt_file)
 
     fclose(fp);
 
-    alert_msg("success encrypt file", encrypt_file->val);
+    alert_msg("success encrypt file ", encrypt_file->val);
     return SUCCESS;
 }
 
@@ -90,22 +90,24 @@ zend_result decrypt_file_code(zend_string *decrypt_file, zend_string *decrypt_ke
     }
 
     // valid key header
-    int key_len = strlen(YAOLING_ENCRYPT_LIB);
-
+    bool key_tag = true;
     short temp;
-
     // key header
-    char key[key_len];
-    for (int i = 0; i < key_len; i++)
+    for (int i = 0; i < strlen(YAOLING_ENCRYPT_LIB); i++)
     {
         int a = fscanf(fp, "%hd", &temp);
         temp <<= 1;
         temp >>= 5;
-        key[i] = (char)temp;
+        char ch = (char)temp;
+		if (toascii(ch) - toascii(YAOLING_ENCRYPT_LIB[i]) != 0 || !ch)
+		{
+			key_tag = false;
+			break;
+		}
     }
 
-   
-    if(strcmp(key,YAOLING_ENCRYPT_LIB) != 0){
+
+   if (key_tag == false){
         err_msg("decrypt key is ","illegal");
         goto fail;
     }
@@ -166,7 +168,7 @@ zend_result decrypt_file_code(zend_string *decrypt_file, zend_string *decrypt_ke
 
     fclose(fp);
 
-    alert_msg("success decrypt file", decrypt_file->val);
+    alert_msg("success decrypt file ", decrypt_file->val);
     return SUCCESS;
 
 
@@ -177,7 +179,7 @@ fail:
     {
         fclose(fp);
     }
-    err_msg("Can not decrypt file", decrypt_file->val);
+    err_msg("Can not decrypt file ", decrypt_file->val);
     return FAILURE;
 }
 }
